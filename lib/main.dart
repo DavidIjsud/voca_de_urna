@@ -115,12 +115,12 @@ class _CameraScreenState extends State<CameraScreen> {
                       onPressed: () async {
                         await _takePicture().then((String path) {
                           if (path != null) {
-                            Navigator.push(
+                           /* Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => DetailScreen(path),
                               ),
-                            );
+                            ); */
                           }
                         });
                       },

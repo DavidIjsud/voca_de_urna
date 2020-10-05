@@ -6,6 +6,7 @@ import 'package:flutter_vision/captura_imagen.dart';
 import 'package:flutter_vision/captura_imagen_two.dart';
 import 'package:flutter_vision/main.dart';
 import 'package:flutter_vision/sigla.dart';
+import 'package:modal_progress_hud/modal_progress_hud.dart';
 
 class MainPage extends StatefulWidget {
   MainPage();
@@ -15,14 +16,22 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  CollectionReference resultadoDEVotos;
 
+  GlobalKey<ScaffoldState> globalKey = GlobalKey<ScaffoldState>();
+
+  CollectionReference resultadoDEVotos;
+  String actaAbuscar;
+  bool cargando;
+  String urlObtenidaDeLaImagen;
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     print("Entro");
     initializeFlutterFire();
+    this.actaAbuscar = "";
+    this.cargando = false;
+    this.urlObtenidaDeLaImagen = "";
   }
 
   void initializeFlutterFire() async {
@@ -36,38 +45,111 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Segundo parcial Software"),
-      ),
-      body: Container(
-        width: double.infinity,
-        child: Column(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            RaisedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CapturaImagen(),
+    return ModalProgressHUD(
+          inAsyncCall: this.cargando,
+          dismissible: false,
+          color: Colors.green,
+          progressIndicator: CircularProgressIndicator(),
+          child: Scaffold(
+            key: this.globalKey,
+        appBar: AppBar(
+          title: Text("Segundo parcial Software"),
+        ),
+        body: Container(
+          width: double.infinity,
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              SizedBox( height: 30.0, ),  
+              RaisedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CapturaImagen(),
+                    ),
+                  );
+                },
+                child: Container(
+                  child: Text("ENVIAR ACTA"),
+                ),
+              ),
+              RaisedButton(
+                onPressed: () {
+                  _mostrarDialog(context);
+                },
+                child: Container(
+                  child: Text("VER RESULTADOS ONLINE"),
+                ),
+              ),
+              SizedBox( height: 10.0, ),
+              Text("DESEA BUSCAR UN ACTA EN PARTICULAR?", style: TextStyle( color: Colors.red, ), ),
+              Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: TextField(
+                    onChanged: (value){
+                        setState(() {
+                            this.actaAbuscar = value;
+                        });
+                    },
+                    decoration: InputDecoration(
+                      hintText: "Ingresar el ID de acta",
+                    ),
+                ),
+              ),
+              RaisedButton(
+                  onPressed: this.actaAbuscar != "" ? () async {
+
+
+                          this.setState(() { 
+                              this.cargando = true;
+                          });
+
+                          CollectionReference actasColeccion =
+                          FirebaseFirestore.instance.collection('/actas_guardadas');
+
+                         DocumentSnapshot documento = await   actasColeccion.doc(this.actaAbuscar).get();
+
+                        if( documento.exists ){
+                          this.setState(() { 
+                              this.cargando = false;
+                              this.urlObtenidaDeLaImagen =    documento.data()["URL_IMAGEN"];
+                          });
+                        }else{
+                           this.setState(() { 
+                              this.cargando = false;
+                           }); 
+                           SnackBar snackBar =  SnackBar(
+                              content: Text("El acta electoral no existe o no fue subida aun"),
+                              backgroundColor: Colors.red,
+                              );
+
+                            this.globalKey.currentState.showSnackBar(snackBar);  
+
+                        }
+
+                  } : null,
+                  child: Container(
+                        child: Center(
+                          child: Text("Buscar acta"),
+                        ),
                   ),
-                );
-              },
-              child: Container(
-                child: Text("ENVIAR ACTA"),
               ),
-            ),
-            RaisedButton(
-              onPressed: () {
-                _mostrarDialog(context);
-              },
-              child: Container(
-                child: Text("VER RESULTADOS ONLINE"),
-              ),
-            ),
-          ],
+              this.urlObtenidaDeLaImagen != "" ?
+              Container(
+                  width: double.infinity,
+                  height: 300.0,
+                  color: Colors.transparent,
+                  child: FadeInImage(
+                    placeholder: AssetImage('assets/gifs/pre_loading.gif'), 
+                    image:   NetworkImage(this.urlObtenidaDeLaImagen)
+                    ),
+              ) : 
+              Container()
+
+            ],
+          ),
         ),
       ),
     );

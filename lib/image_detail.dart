@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_ml_vision/firebase_ml_vision.dart';
 import 'package:flutter_vision/main_page.dart';
@@ -10,19 +11,24 @@ import 'dart:async';
 import 'package:modal_progress_hud/modal_progress_hud.dart';
 
 class DetailScreen extends StatefulWidget {
-  final String imagePath;
-  DetailScreen(this.imagePath);
+  final String imagePath, imagenActa, codigoActa;
+  final File archivActa;
+  DetailScreen({this.imagePath, this.imagenActa, this.codigoActa, this.archivActa});
 
   @override
-  _DetailScreenState createState() => new _DetailScreenState(imagePath);
+  _DetailScreenState createState() => new _DetailScreenState(imagePath, imagenActa, codigoActa, archivActa);
 }
 
 class _DetailScreenState extends State<DetailScreen> {
-  _DetailScreenState(this.path);
+  _DetailScreenState(this.path, this.acta, this.codigoActa, this.archivoActa);
 
   GlobalKey<ScaffoldState> globalKey = GlobalKey<ScaffoldState>();
 
   final String path;
+  final String acta;
+  final String codigoActa;
+  final archivoActa;
+
   Map<String, String> resultadosDeLosVotos;
   List<String> listaDeREsultados;
   List<String> listaDeSiglas;
@@ -219,6 +225,34 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  Future uploadImageToFirebase(BuildContext context) async {
+    String fileName = this.acta;
+    StorageReference firebaseStorageRef =
+        FirebaseStorage.instance.ref().child('actas_imagenes/$fileName');
+    StorageUploadTask uploadTask = firebaseStorageRef.putFile(this.archivoActa);
+    StorageTaskSnapshot taskSnapshot = await uploadTask.onComplete;
+  dynamic value =  await taskSnapshot.ref.getDownloadURL();
+   print("SEra la url? "+  value.toString());
+
+  CollectionReference actasColeccion =
+                          FirebaseFirestore.instance.collection('/actas_guardadas');
+
+  actasColeccion.doc(this.codigoActa).set({
+        "CC" :  this.listaDeREsultados[0],
+        "FPV" : this.listaDeREsultados[1],
+        "MTS" : this.listaDeREsultados[2],
+        "UCS" : this.listaDeREsultados[3],
+        "MAS-IPSP" : this.listaDeREsultados[4],
+        "21F"      : this.listaDeREsultados[5],
+        "PDC"      : this.listaDeREsultados[6],
+        "MNR"      : this.listaDeREsultados[7],
+        "PAN-BOL"  : this.listaDeREsultados[8],
+        "URL_IMAGEN" : value.toString()   
+        
+  });                       
+
+  }
+
   void _mostrarDialog(BuildContext contexto) {
     final tamanoPhone = MediaQuery.of(contexto).size;
 
@@ -330,6 +364,8 @@ class _DetailScreenState extends State<DetailScreen> {
                           .doc("rFA4Z34h25viza6pF8kv")
                           .update(mapaAenviar);
 
+                    uploadImageToFirebase(contexto);
+
                       setState(() {
                         this.cargando = false;
                       });
@@ -416,6 +452,8 @@ class _DetailScreenState extends State<DetailScreen> {
         });
   }
 }
+
+
 
 class TextDetectorPainter extends CustomPainter {
   TextDetectorPainter(this.absoluteImageSize, this.elements);
